@@ -1,0 +1,218 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+```{r}
+library(wordcloud)
+library(slam)
+library(quanteda)
+library(arules)
+library(proxy)
+library(SnowballC)
+library(cluster)
+library(stringi)
+library(Matrix)
+library(plyr)
+library(ggplot2)
+library(dplyr)
+library(tm)
+library(mclust)
+library(tidytext)
+library(factoextra)
+library(dendextend)
+```
+
+
+```{r}
+setwd("/Users/shaunmckellarjr/Desktop/IST 707-Applied Machine Learning/Week 4 HW/Week 4 Hw File")
+```
+
+
+```{r}
+#Load Federalist Papers dataset
+FederalistPapers <- read.csv("fedPapers85.csv")
+```
+
+
+```{r}
+#Create a backup of FederalistPapers in case it's needed
+FederalistPapers_Orig <- FederalistPapers
+```
+
+```{r}
+#Taking a look at the data
+View(FederalistPapers)
+```
+
+```{r}
+#Check for missing values
+sum(is.na(FederalistPapers))
+```
+
+
+```{r}
+###Ignore overly common words i.e. terms that appear in more than 50% of the documents
+(maxTermFreq <- FedPapers_km * 1)
+```
+```{r}
+### ignore extremely rare words i.e. terms that appear in less then 1% of the documents
+(minTermFreq <- FedPapers_km * 0.0001)
+```
+
+```{r}
+(MyStopwords <- c("will","one","two", "may","less", "well","might","withou","small", "single", "several", "but", "very", "can", "must", "also", "any", "and", "are", "however", "into", "almost", "can","for", "add" ))
+```
+
+
+```{r}
+(STOPS <-stopwords('english'))
+```
+
+
+```{r}
+summary(FederalistPapers)
+```
+
+
+```{r}
+(getTransformations())
+```
+
+
+```{r}
+# Remove author names from dataset for clustering purposes
+FedPapers_km <-FederalistPapers[,2:72]
+```
+
+
+```{r}
+# Reduce the dimensionality ... focus on signal and not noise :)
+#FedPapers_km <- select(FedPapers_km, filename, upon, all, may, also, even, from, shall, only)
+```
+
+```{r}
+#Make the fule names the row names. Need a dataframe of numerical values for k-means
+rownames(FedPapers_km) <- FedPapers_km[,1]
+FedPapers_km[,1] <- NULL
+```
+
+```{r}
+View(FedPapers_km)
+```
+
+```{r}
+#Determine "Optimal" number of clusters
+ fviz_nbclust(FederalistPapers, FUN=hcut,method = "wss")
+fviz_nbclust(FederalistPapers, FUN =hcut, method = "silhouette")
+```
+
+
+```{r}
+set.seed(20)
+```
+
+
+```{r}
+#run k-means
+Clusters <- kmeans(FedPapers_km, 8)
+```
+
+```{r}
+FedPapers_km$Clusters <- as.factor(Clusters$cluster)
+```
+
+
+```{r}
+str(Clusters)
+```
+
+```{r}
+Clusters$centers
+```
+
+```{r}
+#Next we will add the clustering results back to the dataframe and display the findings. We can attempt to identify if the clustering results intuitively group paper written by the same auther into the same clusters.
+```
+
+```{r}
+#Add clusters to dataframe orig dataframe with auther name
+FedPapers_km2 <-FederalistPapers
+FedPapers_km2$Clusters <- as.factor(Clusters$cluster)
+```
+
+```{r}
+#Plotting results
+clusplot(FedPapers_km, FedPapers_km$Clusters, color=TRUE, shade=TRUE, labels=0, lines=0)
+```
+
+```{r}
+ggplot(data = FedPapers_km2, aes(x=author, fill=Clusters)) +
+  geom_bar(stat = "count") +
+  labs(title = "K = ?")+
+  theme(plot.title = element_text(hjust = 0.5), text = element_text(size = 15))
+```
+Hierachical Clustering Algos
+
+```{r}
+#Remove author names from dataset
+FedPapers_HAC <- FederalistPapers[,c(2:72)]
+```
+
+
+```{r}
+#Make the fule names the row names. Need a dataframe of numerical values for HAC
+rownames(FedPapers_HAC) <- FedPapers_HAC[,1]
+FedPapers_HAC[,1] <- NULL
+```
+
+```{r}
+View(FedPapers_HAC)
+```
+
+
+```{r}
+#Calculate distance in a variety of ways
+distance <- dist(FedPapers_HAC, method = "euclidean")
+distance2 <- dist(FedPapers_HAC, method = "maximum")
+distance3 <- dist(FedPapers_HAC, method = "manhattan")
+distance4 <- dist(FedPapers_HAC, method = "canberra")
+distance5 <- dist(FedPapers_HAC, method = "binary")
+distance6 <- dist(FedPapers_HAC, method = "supremum")
+```
+
+```{r}
+HAC <- hclust(distance2, method = "complete")
+plot(HAC, cex=0.6, hang=-1)
+rect.hclust(HAC, k=6, border = 2:5)
+```
+
+```{r}
+HAC2 <- hclust(distance3, method = "complete")
+plot(HAC2, cex=0.6, hang=-1)
+rect.hclust(HAC2, k =5, border = 2:5)
+```
+
+
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
+
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
