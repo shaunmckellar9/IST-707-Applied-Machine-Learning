@@ -1,0 +1,185 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+
+```{r}
+library(caret)
+library(e1071)
+library(rpart)
+library(tidyverse)
+library(rpart.plot)
+```
+
+```{r}
+getwd()
+```
+
+```{r}
+setwd("/Users/shaunmckellarjr/Desktop/IST 707-Applied Machine Learning/Week 6 HW")
+```
+
+Data Preprocessing: Train/test Split
+```{r}
+train <- read_csv("/Users/shaunmckellarjr/Desktop/IST 707-Applied Machine Learning/Week 6 HW/digit_train.csv")
+```
+
+```{r}
+str(train)
+```
+
+```{r}
+test <- read_csv("/Users/shaunmckellarjr/Desktop/IST 707-Applied Machine Learning/Week 6 HW/digit_test.csv")
+```
+```{r}
+# Ensure the target variable is a factor
+train$label <- as.factor(train$label)
+```
+
+Decision Tree
+```{r}
+start <- Sys.time()
+#Create a decision tree model
+tree_model <- rpart(
+  formula = label ~.,
+  data = train
+  #TuneCV = 3
+)
+```
+
+```{r}
+# Decision Tree with caret
+set.seed(123)  # For reproducibility
+train_control_dt <- trainControl(method = "cv", number = 3)  # 3-fold cross-validation
+tune_grid_dt <- expand.grid(cp = seq(0.01, 0.1, by = 0.01))  # Pruning complexity parameter grid
+
+start_dt <- Sys.time()
+tree_model <- train(label ~ ., data = train, method = "rpart", 
+                    trControl = train_control_dt, tuneGrid = tune_grid_dt)
+end_dt <- Sys.time()
+```
+
+```{r}
+
+```
+
+
+```{r}
+print(tree_model$bestTune)
+final_model_dt <- tree_model$finalModel
+rpart.plot(final_model_dt)
+```
+
+```{r}
+print(tree_model)
+```
+
+```{r}
+class(tree_model)
+```
+
+```{r}
+# Extract the final model for plotting
+final_model <- tree_model$finalModel
+
+# Now you can plot if final_model is an rpart object
+rpart.plot(final_model)
+```
+
+#Naïve Bayes
+
+```{r}
+start <- Sys.time()
+#Create a Naive Bayes Model
+nb_model <- naiveBayes(
+  label ~., 
+  data = train
+)
+```
+
+
+```{r}
+#Naive Bayes Model
+set.seed(123)
+train_control_nb <- trainControl(method = "cv", number = 3)
+tune_grid_nb <- expand.grid(usekernel = c(TRUE, FALSE),
+                            laplace = c(0, 0.5, 1),
+                            adjust = c(1, 2))
+```
+
+
+```{r}
+start_nb <- Sys.time()
+nb_model <- train(label ~ ., data = train, method = "naive_bayes", 
+                  trControl = train_control_nb, tuneGrid = tune_grid_nb)
+end_nb <- Sys.time()
+```
+
+
+```{r}
+print(nb_model$bestTune)
+```
+
+
+```{r}
+# Train the Naïve Bayes model with the train dataset
+nb_model <- train(
+  label ~ ., 
+  data = train, 
+  method = "naive_bayes", 
+  trControl = train_control_nb, 
+  tuneGrid = tune_grid_nb
+)
+```
+
+
+```{r}
+# Print the best model based on cross-validation
+print(nb_model$bestTune)
+```
+
+```{r}
+# Check if test dataset has a label column for accuracy calculation
+if("label" %in% colnames(test)) {
+  # Predictions and Comparison of Models
+  tree_predictions <- predict(tree_model, newdata = test)
+  tree_accuracy <- sum(tree_predictions == test$label) / nrow(test)
+  
+  nb_predictions <- predict(nb_model, newdata = test)
+  nb_accuracy <- sum(nb_predictions == test$label) / nrow(test)
+  
+  # Print out accuracy for both models
+  print(paste("Decision Tree Test Set Accuracy:", round(tree_accuracy, 4)))
+  print(paste("Naive Bayes Test Set Accuracy:", round(nb_accuracy, 4)))
+} else {
+  # If the test dataset does not have labels, calculate training set accuracy
+  tree_train_predictions <- predict(tree_model, newdata = train)
+  tree_train_accuracy <- sum(tree_train_predictions == train$label) / nrow(train)
+  
+  nb_train_predictions <- predict(nb_model, newdata = train)
+  nb_train_accuracy <- sum(nb_train_predictions == train$label) / nrow(train)
+}
+```
+  
+  
+```{r}
+  # Print out training set accuracy for both models
+  print(paste("Decision Tree Training Set Accuracy:", round(tree_train_accuracy, 4)))
+  print(paste("Naive Bayes Training Set Accuracy:", round(nb_train_accuracy, 4)))
+
+```
+
+
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
