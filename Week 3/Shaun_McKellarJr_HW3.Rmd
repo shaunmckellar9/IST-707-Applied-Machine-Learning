@@ -1,0 +1,310 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+
+
+```{r}
+library(plyr)
+library(dplyr)
+library(ggplot2)
+library(gridExtra)
+library(arules)
+library(arulesViz)
+```
+
+
+```{r}
+getwd()
+```
+
+
+```{r}
+bd <- read.csv("/Users/shaunmckellarjr/Desktop/IST 707-Applied Machine Learning/Week 3 HW/bankdata_csv_all.csv")
+```
+
+```{r}
+#Removes any NA values in the bd dataframe
+bd <- na.omit(bd)
+```
+
+```{r}
+# Check the number of rows
+num_rows <- nrow(bd)
+```
+
+```{r}
+# Check the number of columns
+num_cols <- ncol(bd)
+```
+
+```{r}
+# Print the results
+cat("Number of rows:", num_rows, "\n")
+cat("Number of columns:", num_cols, "\n")
+```
+
+
+```{r}
+str(bd)
+```
+
+```{r}
+colSums(is.na(bd))
+```
+
+```{r}
+summary(bd$age)
+```
+
+```{r}
+summary(bd$income)
+```
+
+```{r}
+ggplot(data = bd, aes(x = age, y = income)) +
+  geom_point() +
+  labs(x = "Age", y = "Income", title = "Scatterplot of Age vs. Income")
+```
+
+```{r}
+# Create the histograms
+ageHist <- ggplot(bd, aes(x = age)) +
+  geom_histogram(bins = 6, fill = "steelblue", col = "white") +
+  labs(title = "Age Distribution")
+
+incomeHist <- ggplot(bd, aes(x = income)) +
+  geom_histogram(fill = "aquamarine4", col = "white", bins = 8) +
+  labs(title = "Income Distribution")
+
+# Arrange the histograms side by side
+grid.arrange(ageHist, incomeHist, nrow = 1)
+```
+
+
+```{r}
+#Remove ID field
+bd <- bd[, !names(bd) %in% "id"]
+```
+
+
+```{r}
+str(bd)
+```
+
+
+```{r}
+#convert children to ordinal factor
+bd$children <- ordered(bd$children)
+```
+
+```{r}
+#convert char features to factors
+bd$sex <- factor(bd$sex)
+bd$region <- factor(bd$region)
+bd$married <- factor(bd$married)
+bd$car <- factor(bd$car)
+bd$save_act <- factor(bd$save_act)
+bd$current_act <- factor(bd$current_act)
+bd$mortgage <- factor(bd$mortgage)
+bd$pep <- factor(bd$pep)
+```
+
+```{r}
+# Convert the 'age' column to numeric
+bd$age <- as.numeric(bd$age)
+```
+
+```{r}
+# Convert the 'income' column to numeric
+bd$income <- as.numeric(bd$income)
+```
+
+```{r}
+#discretize age and income
+bd$age <- cut(bd$age, breaks = c(0,20,30,40,50,60,100),
+labels = c("teens", "twenties", "thirties", "forties", "fifties", "sixties"),
+right = FALSE)
+bd$income <- cut(bd$income, breaks = c(0,15000,25000,35000,45000,100000),
+labels = c("0-14999", "15,000-24,999", "25,000-34,999",
+"35,000-44999", "45,000+"),
+right = FALSE)
+```
+
+```{r}
+table(bd$age)
+```
+
+```{r}
+table(bd$income)
+```
+
+```{r}
+str(bd)
+```
+
+```{r}
+boxplot(bd$age, bd$income, 
+        names = c("Age", "Income"),
+        main = "Box Plot of Age and Income",
+        ylab = "Value",
+        col = c("lightblue", "lightgreen"))
+
+# Add a legend
+legend("topright", legend = c("Age", "Income"), fill = c("lightblue", "lightgreen"))
+```
+
+
+```{r}
+myRules = apriori(bd, parameter = list(supp = 0.001, conf = 0.9, maxlen = 3))
+```
+
+```{r}
+myRules
+```
+
+```{r}
+inspect(myRules)
+```
+
+
+```{r}
+inspect(myRules[1:10])
+```
+
+```{r}
+# Create a bar chart for the "married" field
+ggplot(data = bd, aes(x = married)) +
+  geom_bar() +
+  labs(title = "Marital Status Distribution",
+       x = "Married",
+       y = "Count")
+```
+
+```{r}
+# Create a bar chart for the "married" field
+ggplot(data = bd, aes(x = mortgage)) +
+  geom_bar() +
+  labs(title = "",
+       x = "Mortgage Count",
+       y = "Count")
+```
+
+```{r}
+# Create a bar chart for the "married" field
+ggplot(data = bd, aes(x = region)) +
+  geom_bar() +
+  labs(title = "",
+       x = "Region",
+       y = "Count")
+```
+
+```{r}
+# Create a bar chart for the "married" field
+ggplot(data = bd, aes(x = save_act)) +
+  geom_bar() +
+  labs(title = "",
+       x = "Saving accounts",
+       y = "Count")
+```
+
+```{r}
+# Create a bar chart for the "married" field
+ggplot(data = bd, aes(x = income)) +
+  geom_bar() +
+  labs(title = "Income of customer",
+       x = "Income",
+       y = "Count")
+```
+
+```{r}
+# Create a bar chart for the "married" field
+ggplot(data = bd, aes(x = age)) +
+  geom_bar() +
+  labs(title = "age of customer in years",
+       x = "Age",
+       y = "Count")
+```
+
+```{r}
+# Create a bar chart for the "married" field
+ggplot(data = bd, aes(x = children)) +
+  geom_bar() +
+  labs(title = "number of children",
+       x = "Amount of Children",
+       y = "Count")
+```
+
+```{r}
+# Create a bar chart for the "married" field
+ggplot(data = bd, aes(x = current_act)) +
+  geom_bar() +
+  labs(title = "Customers with current accounts",
+       x = "current_act",
+       y = "Count")
+```
+
+```{r}
+bd$id <- 1:nrow(bd)  # Add an 'id' column with unique values
+tid <- as.character(bd$id)  # Extract 'id' as character
+bd$id <- NULL  # Remove the 'id' column if no longer needed
+```
+
+```{r}
+# Check if the length of tid matches the number of transactions
+if (length(tid) == length(transactions)) {
+  transactionInfo(transactions)[["transactionID"]] <- tid
+} else {
+  # Handle the case where the lengths do not match (e.g., print an error message)
+  print("Length of tid does not match the number of transactions.")
+}
+
+```
+
+```{r}
+tid <- as.character(bd[["id"]])
+bd$id <- NULL
+transactions <- as(bd, "transactions")
+```
+
+
+```{r}
+itemFrequencyPlot(transactions, topN = 20, type = "absolute")
+```
+
+```{r}
+pep_rules <- apriori(transactions, parameter = list(supp = 0.002, conf = 0.5))
+pep_rules <- sort(pep_rules, decreasing = TRUE, by="lift")
+```
+
+```{r}
+inspect(pep_rules[1:5])
+```
+
+
+```{r}
+inspect(pep_rules[1:10])
+```
+
+
+```{r}
+pep_rules <- apriori(transactions, parameter = list(supp = 0.021, conf = 0.91))
+pep_rules <- sort(pep_rules, decreasing = TRUE, by="lift")
+```
+
+
+```{r}
+inspect(pep_rules[1:5])
+```
+
+
+```{r}
+inspect(pep_rules[1:10])
+```
