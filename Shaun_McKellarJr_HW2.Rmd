@@ -1,0 +1,316 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+```{r}
+library(tidyverse)
+library(forcats)
+library(ggplot2)
+library(dplyr)
+library(stargazer)
+library(caret)
+library(modelr)
+```
+
+```{r}
+getwd()
+```
+
+```{r}
+#replacing any possible blank entries as 'NA'.
+storyteller <- read_csv("data-storyteller.csv", na = c(""))
+```
+
+```{r}
+#checking data types to see what may need changing
+str(storyteller)
+```
+
+
+```{r}
+#DataCleaning
+#Changing variable "School" from a char to factor.
+storyteller$School <-factor(storyteller$School)
+```
+
+```{r}
+#The section column is of the Numeric type and should be be a factor instead
+storyteller$Section<-factor(storyteller$Section)
+```
+
+```{r}
+str(storyteller)
+```
+
+```{r}
+#Removes "Very Ahead +5 from the dataset because it has no data"
+storyteller <- storyteller %>% select(-`Very Ahead +5`)
+```
+
+```{r}
+str(storyteller)
+```
+
+```{r}
+##Each of the remaining columns is a discrete count of the students in each category.
+#As it is not continuous the columns 'Very Ahead', 'Middling', 'Behind', 'More behind', 'Very behind'
+#and 'Completed' should all be integers.
+
+storyteller$`Middling +0`<-as.integer(storyteller$`Middling +0`)
+storyteller$`Behind -1-5`<-as.integer(storyteller$`Behind -1-5`)
+storyteller$`More Behind -6-10`<-as.integer(storyteller$`More Behind -6-10`)
+storyteller$`Very Behind -11`<-as.integer(storyteller$`Very Behind -11`)
+storyteller$Completed<-as.integer(storyteller$Completed)
+```
+
+```{r}
+#Organizing the data Structure
+storytellerTemp<-storyteller[,c(2,1,3,4,5,6,7)]
+
+storyteller<-storytellerTemp
+```
+
+```{r}
+head(storyteller)
+```
+
+```{r}
+#There are no NA values in this dataset.
+sum(is.na(storyteller))
+```
+
+```{r}
+head(storyteller)
+```
+
+```{r}
+#EDA And Data Viz
+```
+
+```{r}
+# Creating a bar chart to show the number of sections from each school
+SchoolValues<-c(length(which(storyteller$School=='A')), length(which(storyteller$School=='B')), length(which(storyteller$School=='C')), length(which(storyteller$School=='D')), length(which(storyteller$School=='E')))
+
+barplot(SchoolValues, names.arg = c('A', 'B', 'C', 'D', 'E'), main='Number of sections Per School')
+
+```
+
+```{r}
+#plotting section and Completed and summarizing the data
+
+barplot(storyteller$Completed, main='#completed students / section', names.arg = c(1:30))
+summary(storyteller$Completed)
+
+
+```
+
+```{r}
+## Further Data Cleaning based on EDA and Viz
+```
+
+```{r}
+#plotting section and Middling and summarizing
+
+barplot(storyteller$`Middling +0`, main='number of Middling students per section', names.arg = c(1:30))
+
+summary(storyteller$`Middling +0`)
+```
+
+```{r}
+#plotting section and Behind and summarizing
+
+barplot(storyteller$`Behind -1-5`, main='number of Behind students per section', names.arg = c(1:30))
+
+summary(storyteller$`Behind -1-5`)
+```
+
+```{r}
+#plotting section and More Behind
+
+barplot(storyteller$`More Behind -6-10`, main='number of More Behind students per section', names.arg = c(1:30))
+
+
+summary(storyteller$`More Behind -6-10`)
+```
+
+```{r}
+#Plotting section and Very Behind
+
+barplot(storyteller$`Very Behind -11`, main='number of Very Behind students per section', names.arg = c(1:30))
+
+summary(storyteller$`Very Behind -11`)
+```
+
+```{r}
+#determining the number of students in each category
+StudentSums<-colSums(storyteller[,3:7])
+
+sum(StudentSums)
+```
+
+```{r}
+#determining the amount of students in each section
+
+SectionSums<-rowSums(storyteller[,3:7])
+
+data.frame(SectionSums)
+```
+
+```{r}
+#Creating a barplot to show distribution
+
+StudentSums<-colSums(storyteller[,3:7])
+barplot(StudentSums, main="Student totals across all categories")
+```
+```{r}
+#More EDA
+```
+
+
+```{r}
+StudentSums/sum(StudentSums)
+```
+
+```{r}
+#More observations:
+ #14% of students are on track in the middling category.
+ #- Nearly 20% of students have completed the program.
+# - Nearly 50% of students in this program are in the 'behind' category alone.
+ #- Students in the bottom two categories make up 20% of the sample. Meaning ~70% of students are behind in the curriculum. 
+
+```
+
+```{r}
+plot(storyteller$Completed, storyteller$`Middling +0`)
+```
+
+```{r}
+storytellerA<-storyteller[which(storyteller$School == "A"),]
+storytellerB<-storyteller[which(storyteller$School == "B"),]
+storytellerC<-storyteller[which(storyteller$School == "C"),]
+storytellerD<-storyteller[which(storyteller$School == "D"),]
+storytellerE<-storyteller[which(storyteller$School == "E"),]
+```
+
+```{r}
+#StudentSumsA
+StudentSumsA<-colSums(storytellerA[3:7])
+StudentSumsA
+```
+
+```{r}
+barplot(StudentSumsA, main = "School A")
+```
+
+```{r}
+StudentSumsB<-colSums(storytellerB[3:7])
+StudentSumsB
+
+barplot(StudentSumsB, main = "School B")
+```
+
+```{r}
+StudentSumsC<-colSums(storytellerC[3:7])
+StudentSumsC
+
+barplot(StudentSumsC, main = "School C")
+```
+
+```{r}
+StudentSumsD<-colSums(storytellerD[3:7])
+StudentSumsD
+
+barplot(StudentSumsD, main = "School D")
+```
+
+```{r}
+StudentSumsE<-colSums(storytellerE[3:7])
+StudentSumsE
+
+barplot(StudentSumsE, main = "School E")
+```
+
+```{r}
+# Initial Observations and Remarks
+
+#Observe:
+
+# - Schools B and D do not follow the same picture that was shown by the data combined. 
+# - A, C, and E follow generally the same pattern as shown by figure 1
+# - B shows many students ahead of the curriculum, completing the program. 
+ #- The majority of students that are behind are behind by 1-5 assignments and very few are in the lowest two categories. 
+ #- This is the most positive picture that the data shows out of the schools.
+ #- School D is the opposite with a small percentage of students having completed all assignments and a large percentage of students being considered 'Very Behind'. 
+
+```
+
+```{r}
+#Comparing the two schools as a representation of the population of program takers ... 
+
+sum(StudentSumsB)/sum(StudentSums)
+
+sum(StudentSumsD)/sum(StudentSums)
+```
+
+```{r}
+#School D has a small number of students, meaning that the data from school D has a greater probability of not being representative of the situation and may be acconted for by random chance. School B is a sample that is approximately one quarter of the overall population, making it more representative of the situation. It also shows that school B is doing something that the rest of the schools are not in order to get students through the course.
+
+```
+
+
+```{r}
+#looking at the data to determine quality sections
+
+barplot(storytellerB$Completed, names.arg =c(1:12),ylim=c(0,30), main = "Students Completed by Section")
+```
+
+```{r}
+#Sections 6, 10, and 12 have the most promising results within school B.
+```
+
+
+```{r}
+rowSums(storytellerB[,3:7])
+
+barplot(storytellerB$`Behind -1-5`+storytellerB$`More Behind -6-10`+storytellerB$`Very Behind -11`, names.arg =c(1:12), ylim=c(0,30), main = "Students Behind by Section")
+```
+
+
+
+```{r}
+# Reshape the data into long format
+category_counts_long <- category_counts %>%
+  pivot_longer(
+    cols = c("Very_Ahead", "Middling", "Behind", "More_Behind", "Very_Behind", "Completed"),
+    names_to = "Category",
+    values_to = "Count"
+  )
+
+```
+
+```{r}
+
+# Create a stacked bar chart
+ggplot(category_counts_long, aes(x = Category, y = Count, fill = Category)) +
+  geom_bar(stat = "identity") +
+  labs(
+    title = "Total Grade or Category Distributions Across All Schools",
+    x = "Category",
+    y = "Total Count of Students"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
