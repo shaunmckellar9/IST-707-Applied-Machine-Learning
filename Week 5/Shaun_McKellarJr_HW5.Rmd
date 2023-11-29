@@ -1,0 +1,156 @@
+---
+title: "Decision Tree HW5"
+output:
+  html_document:
+    df_print: paged
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+```{r}
+library(wordcloud)
+library(slam)
+library(quanteda)
+library(arules)
+library(proxy)
+library(SnowballC)
+library(cluster)
+library(stringi)
+library(Matrix)
+library(plyr)
+library(ggplot2)
+library(dplyr)
+library(tm)
+library(mclust)
+library(tidytext)
+library(factoextra)
+library(dendextend)
+library(caret)
+library(rpart)
+library(rpart.plot)
+library(e1071)
+library(tree)
+```
+
+```{r}
+#Load Federalist Papers dataset
+FederalistPapers <- read.csv("fedPapers85.csv")
+```
+```{r}
+#Create a backup of FederalistPapers in case it's needed
+FederalistPapers_Orig <- FederalistPapers
+```
+
+
+```{r}
+FedPaper85 <- subset(FederalistPapers, author!="dispt")
+```
+
+```{r}
+dispdata85 <- subset(FederalistPapers, author == "dispt")
+```
+
+```{r}
+intrain <- createDataPartition(y=FedPaper85$author, p=0.7, list=FALSE)
+```
+
+```{r}
+training <- FedPaper85[intrain,]
+```
+
+```{r}
+testing <- FedPaper85[-intrain]
+```
+
+```{r}
+tree1 <- rpart(author ~. -filename, data = training, method = 'class', control =rpart.control(cp=0))
+```
+
+```{r}
+summary(tree1)
+```
+
+```{r}
+rpart(formula = author ~ . - filename, data = training, method = "class",control = rpart.control(cp = 0))
+```
+```{r}
+rsq.rpart(tree1)
+```
+
+```{r}
+rpart(formula = author ~ . - filename, data = training, method = "class",control = rpart.control(cp = 0))
+```
+
+```{r}
+rpart.plot(tree1)
+```
+
+```{r}
+tree2 <- rpart(author~. -filename, data = training, method = "class", control =rpart.control(cp=0, minsplit = 10, maxdepth = 4))
+```
+
+```{r}
+summary(tree2)
+```
+
+```{r}
+rpart(formula = author ~ . - filename, data = training, method = "class",control = rpart.control(cp = 0, minsplit = 10, maxdepth = 4))
+```
+
+
+```{r}
+rsq.rpart(tree2)
+```
+
+```{r}
+rpart(formula = author ~ . - filename, data = training, method = "class",control = rpart.control(cp = 0, minsplit = 10, maxdepth = 4))
+```
+
+```{r}
+plotcp(tree2)
+```
+
+```{r}
+rpart.plot(tree2)
+```
+
+```{r}
+rsq.rpart(tree3)
+```
+
+```{r}
+tree3 <- rpart(author~. -filename, data = training, method = "class", control = rpart.control(cp=0,minsplit =5, maxdepth = 5))
+```
+
+```{r}
+summary(tree3)
+```
+
+```{r}
+rpart.plot(tree3)
+```
+
+```{r}
+testpred1 <- data.frame(predict(tree3, newdata85 = testing))
+
+results <- testpred1 %>% mutate(results= ifelse(Madison== 1, 'Madison', ifelse(Hamilton==1,'Hamilton', ifelse(Jay==1, 'Jay', 'HM'))))
+
+row.names <- NULL
+
+testResult <- testpred1 %>% bind_cols(results)
+
+testResult$results <- as.factor(testResult$results)
+```
+
+```{r}
+confusionMatrix(testResult$results, testResult$results)
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
