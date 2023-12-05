@@ -1,0 +1,157 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+```{r}
+library(caret)
+library(tidyverse)
+library(class)
+library(e1071)
+library(randomForest)
+```
+
+```{r}
+setwd("/Users/shaunmckellarjr/Desktop/IST 707-Applied Machine Learning/Week 7 HW/HW 7 Data files")
+```
+
+```{r}
+train <- read_csv("/Users/shaunmckellarjr/Desktop/IST 707-Applied Machine Learning/Week 7 HW/HW 7 Data files/Kaggle-digit-train-sample-small-1400.csv")
+```
+```{r}
+test <- read_csv("/Users/shaunmckellarjr/Desktop/IST 707-Applied Machine Learning/Week 7 HW/HW 7 Data files/Kaggle-digit-train-sample-small-1400.csv")
+```
+
+```{r}
+norm_minmax <- function(x){(x- min(x)) /(max(x)-min(x))}
+
+# Scale the training data
+scaled_train_data <- data.frame(label = train$label, norm_minmax(train[,c(2:ncol(train))]))
+
+# Scale the test data using the same scaling parameters as the training data
+scaled_test_data <- data.frame(label = test$label, norm_minmax(test[,c(2:ncol(test))]))
+```
+
+```{r}
+# since there are no labels in the test set to test accuracy, we 
+# shall split the train dataset into its own train/test split
+
+# Split the data into training and test sets (e.g., 70% training, 30% testing)
+set.seed(123)  # For reproducibility
+train_index <- createDataPartition(train$label, p = 0.7, list = FALSE)
+train_set <- train[train_index, ]
+test_set <- train[-train_index, ]
+
+
+
+# Split the data into training and test sets (e.g., 70% training, 30% testing)
+set.seed(123)  # For reproducibility
+train_index <- createDataPartition(scaled_train_data$label, p = 0.7, list = FALSE)
+train_set <- scaled_train_data[train_index, ]
+test_set <- scaled_train_data[-train_index, ]
+```
+
+
+```{r}
+# Build kNN model
+knn_start <- Sys.time()
+knn_model <- knn(train_set[,c(2:ncol(train_set))], 
+                 test_set[,c(2:ncol(test_set))], 
+                 train_set$label, 
+                 k = 5)
+
+knn_end <- Sys.time()
+knn_end - knn_start
+```
+
+```{r}
+# Build SVM model
+svm_start <- Sys.time()
+svm_model <- svm(label ~ ., data = train_set, kernel = "linear")
+```
+
+```{r}
+svm_end <- Sys.time()
+svm_end - svm_start
+```
+
+
+```{r}
+# Build Random Forest model
+rf_start <- Sys.time()
+rf_model <- randomForest(label ~ ., data = train_set)
+rf_end <- Sys.time()
+rf_end - rf_start
+```
+
+```{r}
+# Make predictions
+knn_predictions <- knn(train_set[,c(2:ncol(train_set))], test_set[,c(2:ncol(test_set))], train_set$label, k = 5)
+svm_predictions <- as.integer(predict(svm_model, test_set))
+rf_predictions <- as.integer(predict(rf_model, test_set))
+
+# Evaluate accuracy
+knn_accuracy <- sum(knn_predictions == test_set$label) / length(test_set$label)
+svm_accuracy <- sum(svm_predictions == test_set$label) / length(test_set$label)
+rf_accuracy <- sum(rf_predictions == test_set$label) / length(test_set$label)
+
+# Report accuracies
+cat("kNN Accuracy:", knn_accuracy, "\n")
+```
+
+
+```{r}
+cat("SVM Accuracy:", svm_accuracy, "\n")
+```
+
+```{r}
+cat("Random Forest Accuracy:", rf_accuracy, "\n")
+```
+
+
+```{r}
+knn_cm <- table(Pred = knn_predictions, Actual = test_set$label)
+print("kNN Confustion Matrix")
+```
+
+
+```{r}
+print(knn_cm)
+```
+
+
+```{r}
+svm_cm <- table(Pred = svm_predictions, Actual = test_set$label)
+print(" ")
+```
+
+
+```{r}
+print(svm_cm)
+```
+
+
+```{r}
+check <- test_set
+
+check$raw_preds <- predict(rf_model, test_set)
+
+final_check <- check %>% select(label, raw_preds)
+
+final_check$int_preds <- as.integer(final_check$raw_preds)
+
+final_check$round_preds <- round(final_check$raw_preds, 0)
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
