@@ -1,0 +1,778 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+```{r}
+library(caret)
+library(e1071)
+library(rpart)
+library(tidyverse)
+library(rpart.plot)
+library(readxl)
+library(stats)
+library(MASS)
+library(DMwR2)
+library(ROSE)
+library(recipes)
+library(themis)
+library(randomForest)
+library(gbm)
+library(xgboost)
+```
+
+
+```{r}
+getwd()
+```
+
+
+```{r}
+setwd("/Users/shaunmckellarjr/Desktop/IST 707-Applied Machine Learning/Project")
+```
+
+```{r}
+Road_Traffic <- read_csv("/Users/shaunmckellarjr/Desktop/IST 707-Applied Machine Learning/Project/cleaned.csv")
+```
+
+```{r}
+summary(Road_Traffic)
+```
+
+```{r}
+str(Road_Traffic)
+```
+
+```{r}
+colSums(is.na(Road_Traffic))
+```
+
+```{r}
+nearZeroVar(Road_Traffic, saveMetrics = TRUE)
+```
+
+```{r}
+# Converting categorical variables to factors
+categorical_vars <- c("Driving_experience", "Age_band_of_driver", "Sex_of_driver", "Weather_conditions", "Type_of_collision")
+Road_Traffic[categorical_vars] <- lapply(Road_Traffic[categorical_vars], factor)
+```
+
+```{r}
+# Handling missing values: Impute or remove
+# Impute with median for numeric columns and mode for categorical columns
+fill_median <- function(x) replace(x, is.na(x), median(x, na.rm = TRUE))
+fill_mode <- function(x) replace(x, is.na(x), names(sort(table(x), decreasing = TRUE))[1])
+Road_Traffic <- Road_Traffic %>%
+  mutate_if(is.numeric, fill_median) %>%
+  mutate_if(is.factor, fill_mode)
+```
+
+
+```{r}
+# Feature Engineering: Creating interaction terms or new features based on domain knowledge
+# Example: Creating an interaction feature (modify as needed)
+Road_Traffic <- Road_Traffic %>%
+  mutate(interaction_feature = as.numeric(Driving_experience) * as.numeric(Age_band_of_driver))  # Example interaction
+```
+
+
+```{r}
+# Scaling numeric features
+preProcessRange <- preProcess(Road_Traffic, method = c("center", "scale"))
+Road_Traffic <- predict(preProcessRange, Road_Traffic)
+```
+
+```{r}
+barplot(table(Road_Traffic$Driving_experience), main = "Driving Experience Ranges", xlab = "driver experience", ylab = "num of accidents")
+```
+```{r}
+barplot(table(Road_Traffic$Age_band_of_driver), main = "Age Range of Drivers", xlab = "Age range", ylab = "amount of drivers")
+```
+```{r}
+barplot(table(Road_Traffic$Sex_of_driver), main = "Sex of Driver", xlab = "Sex", ylab = "num of accidents")
+```
+
+```{r}
+barplot(table(Road_Traffic$Weather_conditions), main = "Accident Weather Conditions", xlab = "Types of Weather Conditions", ylab = "num of accidents")
+
+```
+
+```{r}
+barplot(table(Road_Traffic$Type_of_collision), main = "Types of Accident Collisions", xlab = "driver experience", ylab = "num of accidents")
+```
+
+```{r}
+barplot(table(Road_Traffic$Accident_severity), main = "Accident Severity", xlab = "accident severity level", ylab = "amount of accidents")
+```
+
+```{r}
+# Convert categorical variables to factors
+categorical_vars <- c("Driving_experience", "Age_band_of_driver", "Sex_of_driver", 
+                      "Weather_conditions", "Type_of_collision", "Accident_severity")
+
+Road_Traffic[categorical_vars] <- lapply(Road_Traffic[categorical_vars], factor)
+
+# Handle missing values (example: remove or impute)
+# Road_Traffic <- na.omit(Road_Traffic) # Remove rows with NA values
+# Alternatively, you can impute missing values.
+
+
+# Handle near-zero variance predictors
+nzv <- nearZeroVar(Road_Traffic, saveMetrics = TRUE)
+Road_Traffic <- Road_Traffic[, !nzv$nzv]
+```
+
+```{r}
+# Example: Chi-squared test for Weather conditions
+chisq.test(table(Road_Traffic$Weather_conditions, Road_Traffic$Accident_severity))
+
+# Repeat similar tests for other categorical variables
+```
+
+```{r}
+data <- table(Road_Traffic$Weather_conditions, Road_Traffic$Accident_severity)
+
+# Perform a chi-squared test
+chisq_result <- chisq.test(data)
+
+# Visualize the expected frequencies
+expected <- chisq_result$expected
+heatmap(expected, col = heat.colors(10), main = "Expected Frequencies")
+
+# Visualize the chi-squared distribution
+df <- chisq_result$parameter
+x <- seq(0, 30, length.out = 1000)
+chi_squared_dist <- dchisq(x, df)
+
+# Calculate the critical chi-squared value for a given significance level (e.g., 0.05)
+alpha <- 0.05
+critical_value <- qchisq(1 - alpha, df)
+
+# Create a plot of the chi-squared distribution
+ggplot(data.frame(x = x, y = chi_squared_dist), aes(x, y)) +
+  geom_line() +
+  geom_area(data = subset(data.frame(x = x, y = chi_squared_dist), x >= critical_value), fill = "red", alpha = 0.5) +
+  geom_vline(xintercept = chisq_result$statistic, color = "blue") +
+  annotate("text", x = chisq_result$statistic, y = 0.02, label = "Chi-squared\nStatistic", vjust = -1) +
+  annotate("text", x = critical_value, y = 0.02, label = "Critical Value", vjust = -1) +
+  labs(title = "Chi-squared Test", x = "Chi-squared Value", y = "Density")
+
+# Print the chi-squared test result
+print(chisq_result)
+```
+
+```{r}
+# Example: Chi-squared test for Driving Experience
+chisq.test(table(Road_Traffic$Driving_experience, Road_Traffic$Accident_severity))
+```
+```{r}
+# Your data (assuming 'Road_Traffic' is your dataset)
+data <- table(Road_Traffic$Driving_experience, Road_Traffic$Accident_severity)
+
+# Perform a chi-squared test
+chisq_result <- chisq.test(data)
+
+# Visualize the expected frequencies
+expected <- chisq_result$expected
+heatmap(expected, col = heat.colors(10), main = "Expected Frequencies")
+
+# Visualize the chi-squared distribution
+df <- chisq_result$parameter
+x <- seq(0, 30, length.out = 1000)
+chi_squared_dist <- dchisq(x, df)
+
+# Calculate the critical chi-squared value for a given significance level (e.g., 0.05)
+alpha <- 0.05
+critical_value <- qchisq(1 - alpha, df)
+
+# Create a plot of the chi-squared distribution
+ggplot(data.frame(x = x, y = chi_squared_dist), aes(x, y)) +
+  geom_line() +
+  geom_area(data = subset(data.frame(x = x, y = chi_squared_dist), x >= critical_value), fill = "red", alpha = 0.5) +
+  geom_vline(xintercept = chisq_result$statistic, color = "blue") +
+  annotate("text", x = chisq_result$statistic, y = 0.02, label = "Chi-squared\nStatistic", vjust = -1) +
+  annotate("text", x = critical_value, y = 0.02, label = "Critical Value", vjust = -1) +
+  labs(title = "Chi-squared Test", x = "Chi-squared Value", y = "Density")
+
+# Print the chi-squared test result
+print(chisq_result)
+```
+
+
+
+```{r}
+# Example: Chi-squared test for Type of collision
+chisq.test(table(Road_Traffic$Type_of_collision, Road_Traffic$Accident_severity))
+```
+```{r}
+# Your data (assuming 'Road_Traffic' is your dataset)
+data <- table(Road_Traffic$Type_of_collision, Road_Traffic$Accident_severity)
+```
+
+```{r}
+# Perform a chi-squared test
+chisq_result <- chisq.test(data)
+
+# Visualize the expected frequencies
+expected <- chisq_result$expected
+heatmap(expected, col = heat.colors(10), main = "Expected Frequencies")
+
+# Visualize the chi-squared distribution
+df <- chisq_result$parameter
+x <- seq(0, 30, length.out = 1000)
+chi_squared_dist <- dchisq(x, df)
+
+# Calculate the critical chi-squared value for a given significance level (e.g., 0.05)
+alpha <- 0.05
+critical_value <- qchisq(1 - alpha, df)
+
+# Create a plot of the chi-squared distribution
+ggplot(data.frame(x = x, y = chi_squared_dist), aes(x, y)) +
+  geom_line() +
+  geom_area(data = subset(data.frame(x = x, y = chi_squared_dist), x >= critical_value), fill = "red", alpha = 0.5) +
+  geom_vline(xintercept = chisq_result$statistic, color = "blue") +
+  annotate("text", x = chisq_result$statistic, y = 0.02, label = "Chi-squared\nStatistic", vjust = -1) +
+  annotate("text", x = critical_value, y = 0.02, label = "Critical Value", vjust = -1) +
+  labs(title = "Chi-squared Test", x = "Chi-squared Value", y = "Density")
+
+# Print the chi-squared test result
+print(chisq_result)
+```
+
+
+```{r}
+# Example: Chi-squared test for Driving Experience
+chisq.test(table(Road_Traffic$Age_band_of_driver, Road_Traffic$Accident_severity))
+```
+
+```{r}
+# Example: Chi-squared test for Driving Experience
+chisq.test(table(Road_Traffic$Light_conditions, Road_Traffic$Accident_severity))
+```
+
+
+```{r}
+fisher_test_result <- fisher.test(table(Road_Traffic$Light_conditions, Road_Traffic$Accident_severity), simulate.p.value = TRUE)
+```
+
+```{r}
+# Split the data into training and test sets
+set.seed(123)
+splitIndex <- createDataPartition(Road_Traffic$Accident_severity, p = 0.8, list = FALSE)
+train_data <- Road_Traffic[splitIndex, ]
+test_data <- Road_Traffic[-splitIndex, ]
+```
+
+
+```{r}
+# Train an SVM model
+svm_model <- svm(Accident_severity ~ ., data = train_data, method = "C-classification", kernel = "radial")
+
+# Make predictions
+predictions <- predict(svm_model, test_data)
+
+# Evaluate the model
+confusion_matrix <- confusionMatrix(predictions, test_data$Accident_severity)
+print(confusion_matrix)
+```
+
+
+```{r}
+# Assuming Road_Traffic is your dataset and Accident_severity is the target
+# Ensure that your target variable is a factor
+Road_Traffic$Accident_severity <- as.factor(Road_Traffic$Accident_severity)
+```
+
+```{r}
+# Define the recipe with necessary preprocessing
+# Assuming all other variables except 'Accident_severity' are predictors
+rec <- recipe(Accident_severity ~ ., data = train_data) %>%
+  step_dummy(all_predictors(), -all_numeric()) %>%
+  step_smote(Accident_severity)
+
+# Prepare the recipe
+train_data_prep <- prep(rec, training = train_data)
+```
+
+
+```{r}
+# Apply the prepared recipe
+train_data_balanced <- bake(train_data_prep, new_data = NULL)
+```
+
+
+```{r}
+# Train an SVM model on the balanced training data
+svm_model_balanced <- svm(Accident_severity ~ ., data = train_data_balanced, method = "C-classification", kernel = "radial")
+
+# Make predictions on the test data (ensure test data is processed similarly without SMOTE)
+test_data_processed <- bake(train_data_prep, new_data = test_data)
+
+# Evaluate the model
+predictions_balanced <- predict(svm_model_balanced, test_data_processed)
+confusion_matrix_balanced <- confusionMatrix(predictions_balanced, test_data$Accident_severity)
+print(confusion_matrix_balanced)
+```
+
+
+```{r}
+# Calculate class frequencies
+class_freqs <- table(train_data$Accident_severity)
+
+# Calculate class weights inversely proportional to class frequencies
+class_weights <- 1 / class_freqs
+class_weights <- class_weights / sum(class_weights) * length(class_weights)
+
+# Normalize the weights to make their sum equal to the number of classes
+class_weights_normalized <- class_weights / sum(class_weights) * length(class_weights)
+```
+
+```{r}
+# Train an SVM model with class weights
+svm_model_balanced <- svm(Accident_severity ~ ., data = train_data_balanced, 
+                          method = "C-classification", 
+                          kernel = "radial", 
+                          class.weights = class_weights_normalized)
+
+# Make predictions on the test data
+predictions_balanced <- predict(svm_model_balanced, test_data_processed)
+
+# Evaluate the model
+confusion_matrix_balanced <- confusionMatrix(predictions_balanced, test_data$Accident_severity)
+print(confusion_matrix_balanced)
+```
+
+```{r}
+# Calculate class frequencies
+class_freqs <- table(train_data$Accident_severity)
+
+# Calculate the total number of instances
+total_instances <- sum(class_freqs)
+
+# Calculate class weights more aggressively for minority classes
+class_weights <- total_instances / (length(class_freqs) * class_freqs)
+
+```
+
+```{r}
+# Train an SVM model with adjusted class weights
+svm_model <- svm(Accident_severity ~ ., data = train_data, 
+                 method = "C-classification", 
+                 kernel = "radial", 
+                 class.weights = class_weights)
+
+# Make predictions
+predictions <- predict(svm_model, test_data)
+
+# Evaluate the model
+confusion_matrix <- confusionMatrix(predictions, test_data$Accident_severity)
+print(confusion_matrix)
+```
+
+```{r}
+# Current class weights based on inverse frequency
+class_freqs <- table(train_data$Accident_severity)
+class_weights <- total_instances / (length(class_freqs) * class_freqs)
+
+# Adjust the weights manually based on model performance
+# Example: If class '-4.51342215597332' is under-predicted, increase its weight
+class_weights['-4.51342215597332'] <- class_weights['-4.51342215597332'] * 1.5  # Increase by 50%
+# Similarly, adjust other class weights as needed
+
+# Normalize the weights to make their sum equal to the number of classes
+class_weights_normalized <- class_weights / sum(class_weights) * length(class_weights)
+
+```
+
+```{r}
+# Train the SVM model with the adjusted class weights
+svm_model <- svm(Accident_severity ~ ., data = train_data, 
+                 method = "C-classification", 
+                 kernel = "radial", 
+                 class.weights = class_weights_normalized)
+
+# Make predictions and evaluate
+predictions <- predict(svm_model, test_data)
+confusion_matrix <- confusionMatrix(predictions, test_data$Accident_severity)
+print(confusion_matrix)
+```
+
+```{r}
+# Calculate the total number of instances
+total_instances <- sum(class_freqs)
+
+# Calculate class weights more conservatively
+class_weights <- total_instances / (length(class_freqs) * class_freqs)
+
+# Adjust the weights based on the latest model performance
+# Example: If class '-4.51342215597332' was overemphasized, reduce the increase
+class_weights['-4.51342215597332'] <- class_weights['-4.51342215597332'] * 0.75  # Increase by 25% instead of 50%
+
+# If other classes were underemphasized, consider slight adjustments
+# Example: Slightly decrease weights for other classes to balance
+class_weights['-2.05086479660738'] <- class_weights['-2.05086479660738'] * 0.9
+class_weights['0.411692562758564'] <- class_weights['0.411692562758564'] * 0.9
+
+# Normalize the weights
+class_weights_normalized <- class_weights / sum(class_weights) * length(class_weights)
+```
+
+```{r}
+# Train the SVM model with the adjusted class weights
+svm_model <- svm(Accident_severity ~ ., data = train_data, 
+                 method = "C-classification", 
+                 kernel = "radial", 
+                 class.weights = class_weights_normalized)
+
+# Make predictions and evaluate
+predictions <- predict(svm_model, test_data)
+confusion_matrix <- confusionMatrix(predictions, test_data$Accident_severity)
+print(confusion_matrix)
+```
+
+```{r}
+# Calculate the total number of instances
+total_instances <- sum(class_freqs)
+
+# Calculate class weights more conservatively
+class_weights <- total_instances / (length(class_freqs) * class_freqs)
+
+# Adjust the weights based on the latest model performance
+# Example: If class '-4.51342215597332' was overemphasized, reduce the increase
+class_weights['-4.51342215597332'] <- class_weights['-4.51342215597332'] * 0.80  # Increase by 25% instead of 50%
+
+# If other classes were underemphasized, consider slight adjustments
+# Example: Slightly decrease weights for other classes to balance
+class_weights['-2.05086479660738'] <- class_weights['-2.05086479660738'] * 0.9
+class_weights['0.411692562758564'] <- class_weights['0.411692562758564'] * 1.0
+
+# Normalize the weights
+class_weights_normalized <- class_weights / sum(class_weights) * length(class_weights)
+```
+
+```{r}
+# Train the SVM model with the adjusted class weights
+svm_model <- svm(Accident_severity ~ ., data = train_data, 
+                 method = "C-classification", 
+                 kernel = "radial", 
+                 class.weights = class_weights_normalized)
+
+# Make predictions and evaluate
+predictions <- predict(svm_model, test_data)
+confusion_matrix <- confusionMatrix(predictions, test_data$Accident_severity)
+print(confusion_matrix)
+```
+
+```{r}
+# Calculate the total number of instances
+total_instances <- sum(class_freqs)
+
+# Calculate class weights more conservatively
+class_weights <- total_instances / (length(class_freqs) * class_freqs)
+
+# Adjust the weights based on the latest model performance
+# Example: If class '-4.51342215597332' was overemphasized, reduce the increase
+class_weights['-4.51342215597332'] <- class_weights['-4.51342215597332'] * 0.80  # Increase by 25% instead of 50%
+
+# If other classes were underemphasized, consider slight adjustments
+# Example: Slightly decrease weights for other classes to balance
+class_weights['-2.05086479660738'] <- class_weights['-2.05086479660738'] * 0.95
+class_weights['0.411692562758564'] <- class_weights['0.411692562758564'] * 1.0
+
+# Normalize the weights
+class_weights_normalized <- class_weights / sum(class_weights) * length(class_weights)
+```
+
+```{r}
+# Train the SVM model with the adjusted class weights
+svm_model <- svm(Accident_severity ~ ., data = train_data, 
+                 method = "C-classification", 
+                 kernel = "radial", 
+                 class.weights = class_weights_normalized)
+
+# Make predictions and evaluate
+predictions <- predict(svm_model, test_data)
+confusion_matrix <- confusionMatrix(predictions, test_data$Accident_severity)
+print(confusion_matrix)
+```
+
+```{r}
+# Calculate the total number of instances
+total_instances <- sum(class_freqs)
+
+# Calculate class weights more conservatively
+class_weights <- total_instances / (length(class_freqs) * class_freqs)
+
+# Adjust the weights based on the latest model performance
+# Example: If class '-4.51342215597332' was overemphasized, reduce the increase
+class_weights['-4.51342215597332'] <- class_weights['-4.51342215597332'] * 0.80  # Increase by 25% instead of 50%
+
+# If other classes were underemphasized, consider slight adjustments
+# Example: Slightly decrease weights for other classes to balance
+class_weights['-2.05086479660738'] <- class_weights['-2.05086479660738'] * 0.95
+class_weights['0.411692562758564'] <- class_weights['0.411692562758564'] * 1.5
+
+# Normalize the weights
+class_weights_normalized <- class_weights / sum(class_weights) * length(class_weights)
+```
+
+```{r}
+# Train the SVM model with the adjusted class weights
+svm_model <- svm(Accident_severity ~ ., data = train_data, 
+                 method = "C-classification", 
+                 kernel = "radial", 
+                 class.weights = class_weights_normalized)
+
+# Make predictions and evaluate
+predictions <- predict(svm_model, test_data)
+confusion_matrix <- confusionMatrix(predictions, test_data$Accident_severity)
+print(confusion_matrix)
+```
+
+```{r}
+# Define cross-validation settings
+ctrl <- trainControl(method = "cv", number = 5)
+```
+
+
+```{r}
+# Train an SVM model with cross-validation
+svm_model <- train(Accident_severity ~ ., data = train_data, 
+                   method = "svmRadial",  # Use "svmRadial" for radial kernel
+                   trControl = ctrl,      # Use the defined cross-validation settings
+                   class.weights = class_weights_normalized)  # If using class weights
+
+# Print the cross-validation results
+print(svm_model)
+```
+
+```{r}
+# Split the data into training and testing sets
+set.seed(123)
+splitIndex <- createDataPartition(Road_Traffic$Accident_severity, p = 0.8, list = FALSE)
+train_data <- Road_Traffic[splitIndex, ]
+test_data <- Road_Traffic[-splitIndex, ]
+```
+
+```{r}
+# Train a Random Forest model
+set.seed(123)
+rf_model <- randomForest(Accident_severity ~ ., data = train_data, ntree = 1000)
+```
+
+```{r}
+# Make predictions
+rf_predictions <- predict(rf_model, test_data)
+```
+
+```{r}
+# Evaluate the model
+rf_confusion_matrix <- confusionMatrix(rf_predictions, test_data$Accident_severity)
+print(rf_confusion_matrix)
+```
+
+```{r}
+# Define the recipe
+rec <- recipe(Accident_severity ~ ., data = train_data) %>%
+    step_dummy(all_nominal(), -all_outcomes()) %>%
+    step_smote(Accident_severity)
+
+# Prep the recipe on training data
+prep_rec <- prep(rec, training = train_data)
+
+# Apply the prepared recipe to both training and test data
+train_data_balanced <- bake(prep_rec, new_data = train_data)
+test_data_processed <- bake(prep_rec, new_data = test_data)
+
+```
+
+
+```{r}
+# Train the Random Forest model
+set.seed(123)
+rf_model <- randomForest(Accident_severity ~ ., data = train_data_balanced, ntree = 500)
+
+# Predict using the processed test data
+predictions <- predict(rf_model, test_data_processed)
+```
+
+
+```{r}
+# Evaluate the model
+confusion_matrix <- confusionMatrix(predictions, test_data_processed$Accident_severity)
+print(confusion_matrix)
+
+```
+
+```{r}
+# Convert character variables to factors and ensure all factors are appropriate
+Road_Traffic <- Road_Traffic %>%
+  mutate_if(is.character, as.factor)  # Convert all character columns to factors
+
+```
+
+```{r}
+# Convert the target variable to a factor if not already
+Road_Traffic$Accident_severity <- as.factor(Road_Traffic$Accident_severity)
+```
+
+```{r}
+# Split the data into training and testing sets
+set.seed(123)
+splitIndex <- createDataPartition(Road_Traffic$Accident_severity, p = 0.8, list = FALSE)
+train_data <- Road_Traffic[splitIndex, ]
+test_data <- Road_Traffic[-splitIndex, ]
+```
+
+```{r}
+# Train a Gradient Boosting model
+set.seed(123)
+gbm_model <- gbm(Accident_severity ~ ., data = train_data, 
+                 distribution = "multinomial", 
+                 n.trees = 1000, 
+                 interaction.depth = 3,
+                 shrinkage = 0.01,
+                 cv.folds = 5,
+                 n.minobsinnode = 10,
+                 verbose = FALSE)
+```
+
+```{r}
+# Summarize the model
+summary(gbm_model)
+```
+
+```{r}
+# Make predictions
+gbm_predictions <- predict(gbm_model, test_data, n.trees = 1000, type = "response")
+```
+
+```{r}
+# Convert factors to dummy variables
+dummies <- dummyVars(~., data = Road_Traffic)
+Road_Traffic_processed <- predict(dummies, newdata = Road_Traffic)
+```
+
+```{r}
+# Convert the processed data to a data frame
+Road_Traffic_processed <- as.data.frame(Road_Traffic_processed)
+```
+
+```{r}
+# Convert the target variable to numeric
+Road_Traffic_processed$Accident_severity <- as.numeric(Road_Traffic$Accident_severity) - 1
+```
+
+```{r}
+# Split the data
+set.seed(123)
+splitIndex <- createDataPartition(Road_Traffic_processed$Accident_severity, p = 0.8, list = FALSE)
+train_data <- Road_Traffic_processed[splitIndex, ]
+test_data <- Road_Traffic_processed[-splitIndex, ]
+```
+
+
+```{r}
+# Prepare matrices for xgboost
+train_matrix <- as.matrix(train_data[, -which(names(train_data) == "Accident_severity")])
+test_matrix <- as.matrix(test_data[, -which(names(test_data) == "Accident_severity")])
+train_labels <- train_data$Accident_severity
+test_labels <- test_data$Accident_severity
+```
+
+
+```{r}
+# Parameters for xgboost
+params <- list(
+    objective = "multi:softprob",
+    num_class = length(unique(train_labels)),
+    eval_metric = "mlogloss"
+)
+```
+
+```{r}
+# Train the model
+set.seed(123)
+xgb_model <- xgboost(
+    data = train_matrix,
+    label = train_labels,
+    params = params,
+    nrounds = 100,
+    nthread = 1  # Set this according to your system
+)
+```
+
+```{r}
+# Predictions
+xgb_pred_probs <- predict(xgb_model, test_matrix)
+xgb_pred_classes <- max.col(matrix(xgb_pred_probs, ncol = length(unique(train_labels)))) - 1
+```
+
+```{r}
+# Convert numeric predictions to factor with correct levels
+unique_labels <- sort(unique(Road_Traffic$Accident_severity))  # Get unique, sorted levels of the target variable
+xgb_pred_factor <- factor(xgb_pred_classes, levels = 0:(length(unique_labels) - 1), labels = unique_labels)
+```
+
+
+```{r}
+# Evaluate the model
+conf_matrix <- confusionMatrix(xgb_pred_factor, factor(test_labels, levels = unique_labels))
+print(conf_matrix)
+```
+
+```{r}
+# Check the first few predictions
+head(xgb_pred_probs)
+```
+
+```{r}
+# Convert probabilities to class predictions
+xgb_pred_classes <- max.col(matrix(xgb_pred_probs, ncol = length(unique(train_labels)))) - 1
+
+# Check the first few class predictions
+head(xgb_pred_classes)
+```
+
+```{r}
+# Convert numeric predictions back to factor with the original levels
+xgb_pred_factor <- factor(xgb_pred_classes, levels = 0:(length(unique(train_labels)) - 1), labels = levels(Road_Traffic$Accident_severity))
+
+# Check the first few factor predictions
+head(xgb_pred_factor)
+```
+
+
+```{r}
+# Assuming the levels of Accident_severity are something like 'Class1', 'Class2', 'Class3'
+# Adjust the levels array accordingly if they are different
+levels_array <- levels(Road_Traffic$Accident_severity)
+
+# Map numeric predictions to factor levels
+xgb_pred_factor <- factor(xgb_pred_classes, levels = 0:(length(levels_array) - 1), labels = levels_array)
+
+# Check the first few factor predictions
+head(xgb_pred_factor)
+
+```
+
+```{r}
+# Ensure test labels are in the same factor level as predictions
+test_labels_factor <- factor(test_labels, levels = levels_array)
+
+# Compute the confusion matrix
+conf_matrix <- confusionMatrix(xgb_pred_factor, test_labels_factor)
+print(conf_matrix)
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
