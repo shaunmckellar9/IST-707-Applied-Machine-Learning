@@ -1,1 +1,13 @@
+In my analysis using R, I focused on understanding the factors influencing road traffic accidents and their severity. Initially, I loaded essential libraries like caret, e1071, rpart, and tidyverse, which are crucial for data manipulation, modeling, and visualization. My dataset, named Road_Traffic, was meticulously prepared. It included variables like the age and sex of drivers, their driving experience, and conditions during the accident. I converted categorical variables to factors and handled missing values by imputation, ensuring the dataset was robust for analysis.
 
+I also engaged in feature engineering, creating interaction terms to explore complex relationships in the data. For instance, I combined Driving_experience with Age_band_of_driver to see how these factors jointly influence accident severity. To accommodate models sensitive to the scale of data, like SVM, I scaled numeric features using centering and scaling methods.
+
+In my exploratory analysis, I utilized bar plots to visualize distributions of key variables like Driving_experience, Age_band_of_driver, and Weather_conditions. This helped me gain an initial understanding of the data structure and patterns. I then conducted several chi-squared tests to examine the association between categorical variables and accident severity, revealing significant insights.
+
+For modeling, I started with SVM, using a radial kernel. The initial model showed a skewed prediction towards the majority class, indicating a class imbalance problem. To address this, I experimented with different techniques like SMOTE for balancing the data and adjusting class weights. Although these methods improved the balance in predictions, they also highlighted the challenges of class imbalance in my data.
+
+I also explored other models like Random Forest and Gradient Boosting Machine (GBM). With GBM, I specifically looked at the relative importance of variables, finding that factors like Cause_of_accident and Vehicle_movement were critical in predicting accident severity.
+
+The most challenging part of my analysis was dealing with the XGBoost model. Despite its powerful capabilities, the model predictions were not as effective as expected. This suggested potential overfitting or the need for more complex modeling strategies.
+
+Overall, my analysis not only provided statistical insights but also offered practical implications for traffic safety measures. It highlighted the importance of understanding key factors influencing accident severity and the need for continuous model refinement. In the future, I plan to further fine-tune my models, explore additional features, and possibly integrate more external data sources to enhance the predictive accuracy and reliability of my findings.
